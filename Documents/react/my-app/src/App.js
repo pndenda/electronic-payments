@@ -1,5 +1,4 @@
 import React, {Component} from 'react';
-import logo from './logo.svg';
 import './App.css';
 
 class App extends Component {
@@ -7,9 +6,16 @@ class App extends Component {
     super(props);
     this.state = {
       students: [],
-      value: ""
+      value: "",
+      response: {}
     };
   }
+  componentDidMount() {
+    fetch("http://localhost:8080/students").then((response) => response.json()).then((json) => {
+      this.setState({students: json});
+    });
+  }
+
   onChange = (event) => {
     event.preventDefault();
     let target = event.target;
@@ -25,23 +31,33 @@ class App extends Component {
     if (value && value.length > 0) {
       console.log("here");
       let students = this.state.students;
-      if (students.includes(value)) {
+      let filtered = students.filter(student => student.name === value);
+      if (filtered && filtered.length > 0) {
         alert("User already exists");
       } else {
-        students.push(value);
-        this.setState({students: students});
+        //add to database;
+        let url = `http://localhost:8080/students?name=${value}`;
+        fetch(url, {method: "POST"}).then((response) => response.json()).then((json) => {
+          console.log({json});
+          this.setState({
+            response: json
+          }, () => fetch("http://localhost:8080/students").then((response) => response.json()).then((json) => {
+            this.setState({students: json});
+          }));
+        });
       }
 
     }
   }
 
   removeStudent(student) {
-    if (window.confirm("Are you sure you want to delete " + student)) {
-      console.log("current student is " + student);
-      let students = this.state.students;
-      let index = students.indexOf(student);
-      students.splice(index, 1);
-      this.setState({students: students});
+    if (window.confirm("Are you sure you want to delete " + student.name)) {
+      console.log("current student is " + student.name);
+      let id = student.id;
+      let url = `http://localhost:8080/students?id=${id}`;
+      fetch(url, {method: "DELETE"}).then(response => response.json()).then(json => {
+        this.setState({students: json});
+      });
     }
 
   }
@@ -49,8 +65,10 @@ class App extends Component {
   render() {
 
     let students = this.state.students.map((student, index) => {
+      let name = student.name;
+
       return (<tr key={index}>
-        <td>{student}</td>
+        <td>{name}</td>
         <td>
           <a href="#" onClick={this.removeStudent.bind(this, student)}>
             <i>&times;</i>
